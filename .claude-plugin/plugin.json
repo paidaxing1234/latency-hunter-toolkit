@@ -1,0 +1,32 @@
+{
+  "name": "latency-hunter",
+  "version": "0.1.0",
+  "description": "Latency Hunter Toolkit — quant-engineering skills for Claude Code. backtest-guard audits backtests for look-ahead bias / overfitting / unrealistic execution costs; latency-audit reviews C++ low-latency trading hot paths for lock contention, false sharing, cache misses, heap allocation, syscalls and copies. No alpha, no keys, no models — engineering review only.",
+  "author": {
+    "name": "Latency Hunter (paidaxing)",
+    "url": "https://github.com/paidaxing1234"
+  },
+  "homepage": "https://github.com/paidaxing1234/latency-hunter-toolkit",
+  "repository": "https://github.com/paidaxing1234/latency-hunter-toolkit",
+  "license": "MIT",
+  "keywords": [
+    "quant",
+    "quantitative-trading",
+    "backtesting",
+    "look-ahead-bias",
+    "overfitting",
+    "survivorship-bias",
+    "cpp",
+    "low-latency",
+    "hft",
+    "hotpath",
+    "performance",
+    "lock-free",
+    "claude-code",
+    "skill",
+    "plugin",
+    "binance",
+    "okx",
+    "risk-management"
+  ]
+}
