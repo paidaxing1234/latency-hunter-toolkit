@@ -1,7 +1,7 @@
 {
   "name": "latency-hunter",
-  "version": "0.2.0",
-  "description": "Latency Hunter Toolkit — quant-engineering skills for Claude Code (backtest pitfall audit + C++ low-latency hot-path review + Binance/OKX connector scaffolding). No alpha, no keys, no models — engineering review only.",
+  "version": "0.3.0",
+  "description": "Latency Hunter Toolkit — quant-engineering skills for Claude Code (backtest audit + C++ hot-path review + Binance/OKX connector scaffolding + market-data quality audit + risk-config audit). No alpha, no keys, no models — engineering only.",
   "author": {
     "name": "Latency Hunter (paidaxing)",
     "url": "https://github.com/paidaxing1234"
@@ -13,17 +13,16 @@
     "quant",
     "quantitative-trading",
     "backtesting",
-    "look-ahead-bias",
-    "overfitting",
     "cpp",
     "low-latency",
     "hft",
     "exchange-connector",
-    "websocket",
+    "market-data",
+    "orderbook",
+    "risk-management",
     "binance",
     "okx",
     "claude-code",
-    "skill",
     "plugin"
   ]
 }

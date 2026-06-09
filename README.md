@@ -6,8 +6,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-d97757.svg)](https://docs.claude.com/en/docs/claude-code)
-[![version](https://img.shields.io/badge/version-0.2.0-3b82f6.svg)](#路线图)
-[![skills](https://img.shields.io/badge/skills-3-8b5cf6.svg)](#三个-skill)
+[![version](https://img.shields.io/badge/version-0.3.0-3b82f6.svg)](#路线图)
+[![skills](https://img.shields.io/badge/skills-5-8b5cf6.svg)](#五个-skill)
 
 **中文 | [English](README.en.md)**
 
@@ -35,7 +35,7 @@
 - 这笔成交,**实盘真能成吗**?(成交真实性 / 成本)
 - 这段热路径,**为什么慢**?(锁争用 / false sharing / cache miss / 分配 / syscall)
 
-当前含三个 skill:两个**审查型**(backtest-guard / latency-audit,按"严重度分级 + 定位到 `文件:行` + 不臆测"的铁律工作)+ 一个**生成型**(connector-forge,把"连接器锻造协议"固化成可运行骨架,让连接器从地基上就不漏)。
+当前含五个 skill:四个**审查型**(backtest-guard / latency-audit / orderbook-sanity / risk-config-lint,按"严重度分级 + 定位到 `文件:行` + 不臆测"的铁律工作)+ 一个**生成型**(connector-forge,把"连接器锻造协议"固化成可运行骨架,让连接器从地基上就不漏)。
 
 ## 一键安装
 
@@ -45,16 +45,18 @@
 # 1. 添加本仓库为插件市场
 /plugin marketplace add paidaxing1234/latency-hunter-toolkit
 
-# 2. 安装插件(包含三个 skill + 三个 slash command)
+# 2. 安装插件(包含五个 skill + 五个 slash command)
 /plugin install latency-hunter
 ```
 
-装完后,三个 skill 会在你聊到回测/热路径/连接器相关话题时**自动触发**,也可以用 slash command 显式调用:
+装完后,五个 skill 会在你聊到回测/热路径/连接器/行情数据/风控相关话题时**自动触发**,也可以用 slash command 显式调用:
 
 ```bash
 /backtest-guard   ./strategy        # 审一份回测/策略目录
 /latency-audit    ./engine/src      # 审一段 C++ 热路径
 /connector-forge  ./my-bot          # 生成/修复一个交易所连接器骨架
+/orderbook-sanity ./data            # 审行情数据/采集落库代码的质量坑
+/risk-config-lint ./risk            # 审风控配置/pre-trade 风控代码
 ```
 
 ### 方式二:手动拷贝到 skills 目录(备选)
@@ -65,16 +67,18 @@
 # 克隆仓库
 git clone https://github.com/paidaxing1234/latency-hunter-toolkit.git
 
-# 拷贝三个 skill 到你的用户级 skills 目录
+# 拷贝五个 skill 到你的用户级 skills 目录
 mkdir -p ~/.claude/skills
-cp -r latency-hunter-toolkit/skills/backtest-guard  ~/.claude/skills/
-cp -r latency-hunter-toolkit/skills/latency-audit   ~/.claude/skills/
-cp -r latency-hunter-toolkit/skills/connector-forge ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/backtest-guard   ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/latency-audit    ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/connector-forge  ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/orderbook-sanity ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/risk-config-lint ~/.claude/skills/
 ```
 
-重启 Claude Code 后,直接说"帮我审一下这个回测有没有未来函数""看看这段热路径为什么慢"或"帮我生成一个 Binance 连接器 / WS 老掉线帮我加重连"即可触发。
+重启 Claude Code 后,直接说"帮我审一下这个回测有没有未来函数""看看这段热路径为什么慢""帮我生成一个 Binance 连接器 / WS 老掉线帮我加重连""这数据干不干净 / K 线有没有缺口"或"帮我看看风控配置 / kill-switch 靠不靠谱"即可触发。
 
-## 三个 skill
+## 五个 skill
 
 ### 1. `backtest-guard` · 回测照妖镜
 
@@ -212,6 +216,101 @@ exchange_connector/
 
 > 交付时附一份逐条勾选的**连接器自检清单**(已实现 / TODO / 不适用),让你或 code-reviewer 一眼看清地基哪里还漏。密钥安全是最高级:**绝不写死**,只给 env 注入位 + fail-fast;骨架**默认 testnet**,切 live 须显式确认。两大交易所的端点路由、签名、限频、续期等**完整模板见 `skills/connector-forge/references/connector-blueprint.md`**。
 
+### 4. `orderbook-sanity` · 数据照妖镜
+
+> 把你的订单簿/K线/tick 行情数据(或采集/解析/落库/读取代码)当"嫌疑犯"过堂,逐项照出"会让数据悄悄变脏、进而毒害策略和回测"的工程坑。
+
+**是什么** —— 行情数据质量的"照妖镜"。脏数据是**静默杀手**:盘口交叉、checksum 失配、K线缺口、时间戳漂移**不抛异常、不让程序崩**,只会让你的因子、信号和回测悄悄建在沙子上。最危险的不是"明显坏掉"的数据,而是**数值合法、类型正确、却语义错误**的——落在 1970 的毫秒时间戳、还在形成中的未闭合 bar、序列号连续却被错误应用的本地簿。它做且只做一件事:把这些坑定位到 `文件:行`,告诉你为什么会脏、怎么自测确认、怎么修,而**不碰策略层**。
+
+覆盖三大类陷阱(完整清单、检测代码与修复见 `skills/orderbook-sanity/references/orderbook-pitfalls.md`):
+
+| 类别 | 抓什么 |
+|------|--------|
+| ① 订单簿 / 盘口 | checksum/CRC32 失配、snapshot↔增量衔接错误、盘口交叉(crossed book)、`qty==0` 删档语义错误、深度缺口、序列缺口… |
+| ② K线 / tick | 使用未闭合 bar 泄漏(未来函数)、K线缺口/缺失 bar、重复 bar/重复成交、时间戳乱序/tradeId 缺口、OHLC 不变式破坏、价格离群尖刺… |
+| ③ 通用时间戳 / 对齐 | 时间戳单位混淆(ms/s/ns/us)、universe 幸存者偏差、未来时间戳、停盘 vs 真缺口混淆、时区错误、时钟漂移、symbol 归一化… |
+
+**怎么触发**
+
+- 自动:丢来行情数据样本或采集/解析/落库/读取代码,问"这数据干不干净 / 为什么回测和实盘对不上 / 帮我查 K 线有没有缺口 / 时间戳是不是错了 / 盘口怎么会交叉 / 本地订单簿对不上交易所"。
+- 触发词(中):订单簿审查、行情数据质量、数据照妖镜、交叉盘口、深度缺口、checksum 校验、增量衔接、K线缺失、时间戳乱序、重复 bar、未闭合 bar、时间戳单位、时区错误、时钟漂移、symbol 归一化、幸存者偏差。
+- 触发词(英):orderbook sanity、market data quality、crossed book、checksum mismatch、snapshot delta splice、sequence gap、kline gap、duplicate bar、out-of-order timestamps、unit confusion、clock skew、survivorship bias。
+- 显式:`/orderbook-sanity ./data`
+
+**示例体检报告(片段)**
+
+```
+══════════════════════════════════════════
+   数据体检报告 · orderbook-sanity
+══════════════════════════════════════════
+数据流: 采集(WS) → 解析(parse) → 落库(db) → 读取(load)
+审查范围: feed/ + samples/   扫描文件: 8 个
+
+总评: 🔴 致命 3 项 · 🟠 高危 2 项 · 🟡 中 1 项 · 🔵 低 1 项
+判语: 「seq 看着连续,checksum 早对不上了——本地簿建在沙子上。」
+
+[🔴 致命] checksum 未校验(本地簿可能已静默失同步)
+  位置: src/feed/orderbook_okx.py:––(订阅 books 频道但全文件无 crc32 比对)
+  现象: OKX 每帧带 checksum,代码只按 seq 衔接、从不比对
+  毒害: seq 连续但档位被错误应用/精度截断时无法察觉 → 本地簿静默偏离
+  修复: 逐字复现 checksum,失配即丢弃本地簿重拉 snapshot;价格用定点整数当 key
+
+[🔴 致命] 使用未闭合 bar 泄漏
+  位置: src/feed/kline_ws.py:88
+  现象: 未判 k.x 字段,forming bar 的 close 直接入信号
+  实测: last_bar.close_time > now() 即被使用了未闭合 bar
+  修复: 仅 k.x==true 才采纳为终值;forming bar 标 provisional 永不入信号
+══════════════════════════════════════════
+```
+
+> 命中可疑模式只是"线索"不是"判决":停牌的真缺口、冷门 symbol 的零量桶、极速行情一瞬的锁价、跨所聚合的真实价差,都是**真实市场状态**,每条陷阱都标了"合法例外"以防误伤。报告只指方向、附可立即运行的自测断言,**绝不承诺"修完就绝对干净"**。
+
+### 5. `risk-config-lint` · 风控体检
+
+> 把你的风控配置(`risk_config.json/yaml`)和 pre-trade 风控代码放上手术台,逐项揪出"会让风控形同虚设、实盘爆仓"的工程缺陷。
+
+**是什么** —— 风控是整条交易链路的**最后一道闸**:平时不赚一分钱、存在感为零,可一旦漏了就是本金归零、穿仓欠债。它盯的是一类特别阴险的缺陷:**看着有风控、实际没生效**——配置里写满 `max_position`/`kill_switch`,下单路径却根本不调用;止损分母用错永不触发;限额加载失败 `except: pass` 继续裸奔;风控只看已成交持仓,多笔并发在途订单合计早已超限。这些比"压根没风控"更危险,因为它们给你**虚假的安全感**。三条判据贯穿全程:**pre-trade 阻断 vs post-trade 告警 / fail-closed vs fail-open / 触发后程序闭环 vs 靠人**。
+
+覆盖两大类陷阱(完整代码反例见 `skills/risk-config-lint/references/risk-pitfalls.md`):
+
+| 类别 | 抓什么 |
+|------|--------|
+| ① 限额 / 并发在途 / 回撤 / 杠杆 / kill-switch / 防胖手指 | 缺 pre-trade gate(只 post-trade 拦)、缺单笔/总敞口上限、无界杠杆、敞口口径漏算在途订单(并发竞态)、缺回撤止损 + 口径错误、无自动平仓只告警、缺全局 kill-switch、救命动作通道未与业务下单隔离、防胖手指缺失… |
+| ② 保证金 / 爆仓 / 状态可信 / 单点故障 / 运维 / 密钥 | 限额未在下单前真正强制执行、加载失败 fail-open、风控异常被吞掉、依赖的持仓/资金状态未对账、无维持保证金/爆仓模拟/允许负现金、testnet/live 混淆、无心跳/deadman + 告警单点、密钥写进配置/仓库、配置无 schema 校验… |
+
+**怎么触发**
+
+- 自动:丢来 `risk_config.json` / pre-trade 风控/下单校验代码,问"我的风控有没有漏洞 / 为什么实盘亏穿了风控没拦住 / 帮我看看 kill-switch / 止损 / 杠杆上限对不对 / 限额是不是真生效了 / 并发下单会不会超限"。
+- 触发词(中):风控审查、风控体检、风控配置、仓位上限、敞口上限、回撤止损、最大回撤、kill-switch、爆仓保护、强平、维持保证金、防胖手指、限额、在途订单。
+- 触发词(英):risk config、risk limit、risk audit、kill switch、fat finger、liquidation、margin、drawdown stop、position limit、in-flight order。
+- 显式:`/risk-config-lint ./risk`
+
+**示例体检报告(片段)**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          风控体检报告 / Risk Config Lint
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+审查对象 : risk_config.json + order_gate.py
+体检结论 : ❌ 不可上线(4 致命 / 2 高危)
+一句话   : 限额配置齐全但下单路径未调用,pre-trade gate 缺失且并发在途单不计敞口,风控形同虚设
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[FATAL-1] 风控只在 post-trade 拦截,缺 pre-trade gate
+  位置   : order_gate.py:42  submit_order()
+  现状   : submit() 前无任何风控校验,超限在 on_fill 才告警
+  影响   : 超额敞口已成交,极端行情平不出 → 爆仓
+  修复   : 所有订单提交前同步过统一 risk gate,任一不过即 raise RejectOrder
+
+[FATAL-3] 敞口口径漏算在途订单(并发竞态)
+  位置   : order_gate.py:30  check_exposure() 仅读 position
+  现状   : 检查与下单非原子,在途未成交订单不计入敞口;连发 N 笔各自合规、合计超限
+  修复   : 敞口=持仓+在途预留名义;检查-下单持锁原子化或 reserve-then-commit,testnet 并发复测
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+> 每条至少含 `位置 / 现状 / 影响 / 修复`,明确给出"能不能上线"的硬结论。区分**已生效**与**仅配置存在**:配置里有字段不等于风控生效,必须从 `place_order` 反向追踪到一个会 `raise/return reject` 的 gate。**绝不承诺"绝对不爆仓 / 绝对安全"**——所有 FATAL 项上线前必修,修完务必在 testnet/小资金上复测每条闸真的合上了。
+
 ## 目录结构
 
 ```
@@ -222,7 +321,9 @@ latency-hunter-toolkit/
 ├── commands/
 │   ├── backtest-guard.md     # /backtest-guard slash command
 │   ├── latency-audit.md      # /latency-audit slash command
-│   └── connector-forge.md    # /connector-forge slash command
+│   ├── connector-forge.md    # /connector-forge slash command
+│   ├── orderbook-sanity.md   # /orderbook-sanity slash command
+│   └── risk-config-lint.md   # /risk-config-lint slash command
 ├── skills/
 │   ├── backtest-guard/
 │   │   ├── SKILL.md                          # 回测照妖镜:协议 + 四大类陷阱 + 报告模板
@@ -231,10 +332,18 @@ latency-hunter-toolkit/
 │   ├── latency-audit/
 │   │   ├── SKILL.md                          # 热路径猎手:协议 + 三大类 + 报告模板
 │   │   └── references/                       # 热路径陷阱参考
-│   └── connector-forge/
-│       ├── SKILL.md                          # 连接器锻造:六步协议 + 两大所要点 + 可靠性清单
+│   ├── connector-forge/
+│   │   ├── SKILL.md                          # 连接器锻造:六步协议 + 两大所要点 + 可靠性清单
+│   │   └── references/
+│   │       └── connector-blueprint.md        # Binance/OKX 连接器完整模板(端点/签名/限频/续期)
+│   ├── orderbook-sanity/
+│   │   ├── SKILL.md                          # 数据照妖镜:审查协议 + 三大类陷阱 + 数据体检报告模板
+│   │   └── references/
+│   │       └── orderbook-pitfalls.md         # 行情数据陷阱清单(检测代码 + code smell + 修复)
+│   └── risk-config-lint/
+│       ├── SKILL.md                          # 风控体检:审查协议 + 两大类陷阱 + 风控体检报告模板
 │       └── references/
-│           └── connector-blueprint.md        # Binance/OKX 连接器完整模板(端点/签名/限频/续期)
+│           └── risk-pitfalls.md              # 风控陷阱代码反例(limits 段 + ops 段)
 ├── LICENSE                   # MIT
 ├── README.md                 # 中文(本文)
 └── README.en.md              # English
@@ -242,14 +351,15 @@ latency-hunter-toolkit/
 
 ## 路线图
 
-`v0.2.0` 在地基上又夯了一层:两个**审查型** skill(backtest-guard / latency-audit)+ 一个**生成型** skill(connector-forge)。后续按"一人量化全链路工程审查"的思路继续补,**仍然坚持无 alpha、无密钥、无模型**:
+`v0.3.0` 在地基上又夯了两层:这一版新增 **orderbook-sanity(数据照妖镜)** 与 **risk-config-lint(风控体检)** 两个审查型 skill,审查矩阵扩到四审一造(backtest-guard / latency-audit / orderbook-sanity / risk-config-lint + connector-forge)。后续按"一人量化全链路工程审查"的思路继续补,**仍然坚持无 alpha、无密钥、无模型**:
 
 - [x] **`connector-forge`(连接器锻造)** —— ✅ 已交付(v0.2.0):一键生成/修复生产级 Binance·OKX 行情+交易连接器骨架,WebSocket 重连与心跳、限频令牌桶、签名与时间同步、listenKey/login 续期、重订阅、序列缺口重快照、密钥走 env;也能审已有连接器的可靠性缺口。
-- [ ] **`risk-killswitch-guard`** —— 实盘风控/熔断逻辑审查:仓位上限、最大回撤熔断、单笔/单日亏损阈值、kill switch 可达性。
+- [x] **`orderbook-sanity`(数据照妖镜)** —— ✅ 已交付(v0.3.0):审查订单簿/K线/tick 行情数据质量——盘口交叉、checksum 失配、snapshot/增量衔接、序列/深度缺口、K线缺失/重复/乱序、未闭合 bar 泄漏、时间戳单位/时区/时钟漂移、symbol 归一化、universe 幸存者偏差;每条带"合法例外"区分真坑与真实行情。
+- [x] **`risk-config-lint`(风控体检)** —— ✅ 已交付(v0.3.0):审查风控配置与 pre-trade 风控代码——仓位/敞口上限、回撤止损、杠杆、kill-switch、防胖手指、保证金/爆仓保护、在途订单并发竞态、fail-open vs fail-closed、pre-trade vs post-trade、单点故障与密钥。
+- [ ] **`risk-killswitch-guard`** —— 实盘熔断运行时审查:kill-switch 实际可达性、半夜插针无人响应、复位流程受控性(与静态的 risk-config-lint 互补,侧重运行时行为)。
 - [ ] **`order-state-machine-audit`** —— 订单全生命周期状态机审查:挂单/部成/撤单/超时的竞态与漏态。
-- [ ] **`orderbook-sanity`** —— 本地订单簿一致性审查:snapshot/增量衔接、序列缺口、checksum 校验、定点价格 key、删档逻辑。
-- [ ] **`risk-config-lint`** —— 风控配置静态检查:杠杆/仓位/止损阈值是否缺项、互相矛盾或被写死成危险默认值。
-- [ ] **`data-pipeline-integrity`** —— 行情/因子数据管线完整性:缺口、时区/夏令时、复权口径、point-in-time 落库。
+- [ ] **`data-recorder-audit`** —— 行情录制/回放管线审查:落库幂等、断点续录、回放与实盘对齐口径、point-in-time 一致性。
+- [ ] **`exec-quality-audit`** —— 执行质量审查:滑点/成交率归因、撤改单竞态、TWAP/VWAP 拆单逻辑、实盘成交与回测成交假设的偏差。
 
 有想看的 skill,欢迎提 issue。猎手永远在找下一个延迟。
 

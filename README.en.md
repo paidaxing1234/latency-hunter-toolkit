@@ -6,8 +6,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-d97757.svg)](https://docs.claude.com/en/docs/claude-code)
-[![version](https://img.shields.io/badge/version-0.2.0-3b82f6.svg)](#roadmap)
-[![skills](https://img.shields.io/badge/skills-3-8b5cf6.svg)](#the-three-skills)
+[![version](https://img.shields.io/badge/version-0.3.0-3b82f6.svg)](#roadmap)
+[![skills](https://img.shields.io/badge/skills-5-8b5cf6.svg)](#the-five-skills)
 
 **[中文](README.md) | English**
 
@@ -35,7 +35,7 @@ It never touches your API keys, never predicts returns, never gives you entry/ex
 - Can this fill **actually happen in live trading?** (execution realism / cost)
 - Why is this hot path **slow?** (lock contention / false sharing / cache miss / allocation / syscall)
 
-It currently ships three skills: two **review-type** (backtest-guard / latency-audit, governed by the same ironclad rules — **severity-graded, anchored to `file:line`, never speculative**) plus one **generator-type** (connector-forge, which freezes the "connector forging protocol" into a runnable skeleton so your connector never leaks from the foundation up).
+It currently ships five skills: four **review-type** (backtest-guard / latency-audit / orderbook-sanity / risk-config-lint, governed by the same ironclad rules — **severity-graded, anchored to `file:line`, never speculative**) plus one **generator-type** (connector-forge, which freezes the "connector forging protocol" into a runnable skeleton so your connector never leaks from the foundation up).
 
 ## Install
 
@@ -45,16 +45,18 @@ It currently ships three skills: two **review-type** (backtest-guard / latency-a
 # 1. Add this repo as a plugin marketplace
 /plugin marketplace add paidaxing1234/latency-hunter-toolkit
 
-# 2. Install the plugin (three skills + three slash commands)
+# 2. Install the plugin (five skills + five slash commands)
 /plugin install latency-hunter
 ```
 
-Once installed, all three skills **trigger automatically** when you talk about backtests, hot paths, or connectors, or you can invoke them explicitly via slash commands:
+Once installed, all five skills **trigger automatically** when you talk about backtests, hot paths, connectors, market data, or risk controls, or you can invoke them explicitly via slash commands:
 
 ```bash
 /backtest-guard   ./strategy        # audit a backtest/strategy directory
 /latency-audit    ./engine/src      # audit a C++ hot path
 /connector-forge  ./my-bot          # generate/repair an exchange connector skeleton
+/orderbook-sanity ./data            # audit market-data / ingestion code for quality pitfalls
+/risk-config-lint ./risk            # audit risk config / pre-trade risk code
 ```
 
 ### Option B — manual copy into your skills directory (fallback)
@@ -65,16 +67,18 @@ If you'd rather skip the marketplace and just grab the skills themselves:
 # Clone the repo
 git clone https://github.com/paidaxing1234/latency-hunter-toolkit.git
 
-# Copy all three skills into your user-level skills directory
+# Copy all five skills into your user-level skills directory
 mkdir -p ~/.claude/skills
-cp -r latency-hunter-toolkit/skills/backtest-guard  ~/.claude/skills/
-cp -r latency-hunter-toolkit/skills/latency-audit   ~/.claude/skills/
-cp -r latency-hunter-toolkit/skills/connector-forge ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/backtest-guard   ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/latency-audit    ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/connector-forge  ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/orderbook-sanity ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/risk-config-lint ~/.claude/skills/
 ```
 
-Restart Claude Code, then just say "check this backtest for look-ahead bias", "why is this hot path slow", or "generate a Binance connector / my WS keeps dropping, add reconnect" to trigger them.
+Restart Claude Code, then just say "check this backtest for look-ahead bias", "why is this hot path slow", "generate a Binance connector / my WS keeps dropping, add reconnect", "is this market data clean / are there kline gaps", or "check my risk config / is the kill-switch sound" to trigger them.
 
-## The three skills
+## The five skills
 
 ### 1. `backtest-guard` — the backtest lie detector
 
@@ -218,6 +222,112 @@ exchange_connector/
 
 > Delivered with a checkbox-by-checkbox **connector self-check checklist** (implemented / TODO / N/A) so you or code-reviewer can see at a glance where the foundation still leaks. Key security is top priority: **never hardcoded** — only env-injection points + fail-fast; the skeleton **defaults to testnet**, and switching to live requires explicit confirmation. The **full templates** for both exchanges — endpoint routing, signing, rate limits, renewal — are in **`skills/connector-forge/references/connector-blueprint.md`**.
 
+### 4. `orderbook-sanity` — the market-data lie detector
+
+> Put your order-book / kline / tick data (or the ingest, parse, persist, and load code behind it) on trial and expose every engineering pitfall that quietly corrupts the data and poisons your strategy and backtest.
+
+**What it is** — a lie detector for market-data quality. Dirty data is a **silent killer**: crossed books, checksum mismatches, kline gaps, and timestamp drift **don't throw, don't crash** — they just let your factors, signals, and backtests quietly build on sand. The most dangerous data isn't the *obviously* broken kind; it's data that's **numerically valid, correctly typed, yet semantically wrong** — a millisecond timestamp landing in 1970, a still-forming unclosed bar, a local book whose sequence numbers run continuous but were applied incorrectly. It does one thing only: anchor those pitfalls to `file:line`, tell you why the data goes dirty, how to self-verify, and how to fix it — and it **never touches the strategy layer.**
+
+It covers three families (full catalog, detection code, and fixes in `skills/orderbook-sanity/references/orderbook-pitfalls.md`):
+
+| Family | What it catches |
+|--------|-----------------|
+| ① Order book / quotes | checksum/CRC32 mismatch, snapshot↔increment splice errors, crossed book (`best_bid >= best_ask`), `qty==0` delete-level semantics, depth gaps, sequence gaps… |
+| ② Kline / tick | using an unclosed/forming bar (look-ahead leakage), kline gaps / missing bars, duplicate bars / duplicate trades, out-of-order timestamps / tradeId gaps, OHLC invariant violations, outlier price spikes… |
+| ③ Generic timestamp / alignment | ms/s/ns/us unit confusion, universe survivorship bias, future timestamps, halt vs real-gap confusion, timezone errors, clock skew, symbol normalization… |
+
+**How it triggers**
+
+- Automatically: drop in market-data samples or ingest/parse/persist/load code and ask "is this data clean / why doesn't live match the backtest / check my klines for gaps / are the timestamps wrong / how can the book be crossed / my local book doesn't match the exchange?"
+- Trigger words: orderbook sanity, market data quality, crossed book, checksum mismatch, snapshot delta splice, sequence gap, kline gap, duplicate bar, out-of-order timestamps, unit confusion, clock skew, survivorship bias.
+- Explicit: `/orderbook-sanity ./data`
+
+**Sample health report (excerpt)**
+
+```
+══════════════════════════════════════════
+   Market-Data Health Report · orderbook-sanity
+══════════════════════════════════════════
+Pipeline: ingest(WS) → parse → persist(db) → load
+Scope: feed/ + samples/   Files scanned: 8
+
+Summary: 🔴 Fatal 3 · 🟠 High 2 · 🟡 Medium 1 · 🔵 Low 1
+Verdict: "The sequence looks continuous; the checksum stopped matching
+          a while ago — this book is built on sand."
+
+[🔴 FATAL] Checksum never verified (local book may be silently desynced)
+  Location: src/feed/orderbook_okx.py:–– (subscribes books channel,
+            no crc32 comparison anywhere)
+  Issue:    OKX sends a checksum on every frame; the code only stitches
+            by seq and never compares it.
+  Harm:     when levels are applied wrong / truncated, a continuous seq
+            can't catch it → the local book silently drifts.
+  Fix:      reproduce the checksum verbatim; on mismatch, drop the local
+            book and re-pull snapshot; use fixed-point integers as price keys.
+
+[🔴 FATAL] Using an unclosed bar (leakage)
+  Location: src/feed/kline_ws.py:88
+  Issue:    k.x field unchecked; the forming bar's close feeds the signal.
+  Check:    last_bar.close_time > now() means an unclosed bar was used.
+  Fix:      accept as final only when k.x==true; mark forming bars
+            provisional, never into signals.
+══════════════════════════════════════════
+```
+
+> A matched pattern is a **lead, not a verdict**: real halt gaps, zero-volume buckets on illiquid symbols, a momentary locked book in fast markets, and genuine cross-exchange spreads are all **real market state** — every pitfall is tagged with a "legitimate exception" to prevent false positives. The report only points a direction and ships runnable self-check assertions; it **never promises "perfectly clean after the fix."**
+
+### 5. `risk-config-lint` — the risk-control checkup
+
+> Put your risk config (`risk_config.json/yaml`) and pre-trade risk code on the operating table and pick out every engineering defect that makes risk control toothless and blows up the account in production.
+
+**What it is** — risk control is the **last gate** on the whole trading path: it earns nothing day to day and has zero presence, but the moment it leaks, it's capital wiped to zero and a margin-debt hole. It hunts a particularly insidious class of defect: **looks protected, actually inert** — the config is full of `max_position`/`kill_switch`, yet the order path never calls them; the stop-loss denominator is wrong so it never fires; a limit-load failure does `except: pass` and keeps trading naked; risk only counts *filled* positions while several concurrent in-flight orders already breach the limit in aggregate. These are *more* dangerous than having no risk control at all, because they hand you **false confidence.** Three judgments run throughout: **pre-trade block vs post-trade alert / fail-closed vs fail-open / programmatic closed loop vs relying on a human.**
+
+It covers two families (full code counter-examples in `skills/risk-config-lint/references/risk-pitfalls.md`):
+
+| Family | What it catches |
+|--------|-----------------|
+| ① Limits / concurrent in-flight / drawdown / leverage / kill-switch / fat-finger | missing pre-trade gate (only post-trade), missing per-order / gross-exposure cap, unbounded leverage, exposure that omits in-flight orders (concurrency race), missing drawdown stop + wrong denominator, alert-only with no auto-flatten, missing global kill-switch, emergency actions not isolated from business order flow, missing fat-finger guards… |
+| ② Margin / liquidation / state trust / single point of failure / ops / secrets | limits not actually enforced pre-trade, fail-open on load failure, swallowed risk exceptions, position/equity state never reconciled, no maintenance-margin / liquidation simulation / negative cash allowed, testnet/live confusion, no heartbeat/deadman + single alert channel, secrets committed to config/repo, no config schema validation… |
+
+**How it triggers**
+
+- Automatically: drop in `risk_config.json` / pre-trade risk / order-validation code and ask "does my risk control have holes / why did live blow past the risk limits without stopping / check my kill-switch / stop-loss / leverage cap / are the limits actually enforced / can concurrent orders breach the limit?"
+- Trigger words: risk config, risk limit, risk audit, kill switch, fat finger, liquidation, margin, drawdown stop, position limit, in-flight order.
+- Explicit: `/risk-config-lint ./risk`
+
+**Sample health report (excerpt)**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+          Risk Config Lint Report
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Subject  : risk_config.json + order_gate.py
+Verdict  : ❌ Not deployable (4 fatal / 2 high)
+One-liner: limits fully configured but never called on the order path;
+           pre-trade gate missing and in-flight orders excluded from
+           exposure — risk control is toothless
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[FATAL-1] Risk only blocks post-trade; no pre-trade gate
+  Location: order_gate.py:42  submit_order()
+  State   : no risk check before submit(); breaches only alert in on_fill
+  Impact  : the over-limit exposure is already filled; can't exit in an
+            extreme move → blow-up
+  Fix     : every order passes a unified risk gate synchronously before
+            submit; any failure raises RejectOrder
+
+[FATAL-3] Exposure omits in-flight orders (concurrency race)
+  Location: order_gate.py:30  check_exposure() reads position only
+  State   : check-and-submit non-atomic; pending orders not counted;
+            N rapid orders each pass, the aggregate breaches the limit
+  Fix     : exposure = filled position + reserved notional of in-flight
+            orders; make check-and-submit atomic under a lock or use
+            reserve-then-commit; re-test with concurrent orders on testnet
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+> Every finding carries at least `Location / State / Impact / Fix`, and the report gives a hard deployable-or-not verdict. It distinguishes **actually enforced** from **merely configured**: a field in the config doesn't mean risk control fires — it traces backward from `place_order` to a gate that actually `raise`/returns a reject. It **never promises "won't blow up / absolutely safe"** — all FATAL items must be fixed before going live, and after the fix you must re-test each gate on testnet / small size to confirm it really closes.
+
 ## Directory structure
 
 ```
@@ -228,7 +338,9 @@ latency-hunter-toolkit/
 ├── commands/
 │   ├── backtest-guard.md     # /backtest-guard slash command
 │   ├── latency-audit.md      # /latency-audit slash command
-│   └── connector-forge.md    # /connector-forge slash command
+│   ├── connector-forge.md    # /connector-forge slash command
+│   ├── orderbook-sanity.md   # /orderbook-sanity slash command
+│   └── risk-config-lint.md   # /risk-config-lint slash command
 ├── skills/
 │   ├── backtest-guard/
 │   │   ├── SKILL.md                          # protocol + 4 pitfall families + report template
@@ -237,10 +349,18 @@ latency-hunter-toolkit/
 │   ├── latency-audit/
 │   │   ├── SKILL.md                          # protocol + 3 families + report template
 │   │   └── references/                       # hot-path pitfall references
-│   └── connector-forge/
-│       ├── SKILL.md                          # connector forge: 6-step protocol + 2-exchange cheat sheet + reliability checklist
+│   ├── connector-forge/
+│   │   ├── SKILL.md                          # connector forge: 6-step protocol + 2-exchange cheat sheet + reliability checklist
+│   │   └── references/
+│   │       └── connector-blueprint.md        # full Binance/OKX connector templates (endpoints/signing/rate limits/renewal)
+│   ├── orderbook-sanity/
+│   │   ├── SKILL.md                          # market-data lie detector: review protocol + 3 families + data health report template
+│   │   └── references/
+│   │       └── orderbook-pitfalls.md         # market-data pitfall catalog (detection code + code smell + fix)
+│   └── risk-config-lint/
+│       ├── SKILL.md                          # risk checkup: review protocol + 2 families + risk health report template
 │       └── references/
-│           └── connector-blueprint.md        # full Binance/OKX connector templates (endpoints/signing/rate limits/renewal)
+│           └── risk-pitfalls.md              # risk pitfall code counter-examples (limits section + ops section)
 ├── LICENSE                   # MIT
 ├── README.md                 # 中文 (default)
 └── README.en.md              # English (this file)
@@ -248,14 +368,15 @@ latency-hunter-toolkit/
 
 ## Roadmap
 
-`v0.2.0` packs another layer onto the foundation: two **review-type** skills (backtest-guard / latency-audit) plus one **generator-type** skill (connector-forge). From here it grows along the "full-stack engineering review for the solo quant" line — **still no alpha, no keys, no models**:
+`v0.3.0` packs two more layers onto the foundation: this release adds **orderbook-sanity (the market-data lie detector)** and **risk-config-lint (the risk-control checkup)**, expanding the matrix to four reviewers + one generator (backtest-guard / latency-audit / orderbook-sanity / risk-config-lint + connector-forge). From here it grows along the "full-stack engineering review for the solo quant" line — **still no alpha, no keys, no models**:
 
 - [x] **`connector-forge`** — ✅ shipped (v0.2.0): one-shot generate/repair a production-grade Binance·OKX market-data + trading connector skeleton — WebSocket reconnect & heartbeat, rate-limit token bucket, signing & clock sync, listenKey/login renewal, re-subscribe, sequence-gap re-snapshot, keys via env; also audits existing connectors for reliability gaps.
-- [ ] **`risk-killswitch-guard`** — audit live risk/circuit-breaker logic: position caps, max-drawdown breakers, per-trade/per-day loss thresholds, kill-switch reachability.
+- [x] **`orderbook-sanity`** — ✅ shipped (v0.3.0): reviews order-book/kline/tick data quality — crossed books, checksum mismatch, snapshot/increment splice, sequence/depth gaps, kline gaps/duplicates/out-of-order, unclosed-bar leakage, timestamp unit/timezone/clock drift, symbol normalization, universe survivorship bias; every finding tagged with a "legitimate exception" to separate real pitfalls from real market state.
+- [x] **`risk-config-lint`** — ✅ shipped (v0.3.0): reviews risk config and pre-trade risk code — position/exposure caps, drawdown stops, leverage, kill-switch, fat-finger guards, margin/liquidation protection, in-flight order concurrency races, fail-open vs fail-closed, pre-trade vs post-trade, single points of failure and secrets.
+- [ ] **`risk-killswitch-guard`** — runtime circuit-breaker review: actual kill-switch reachability, the "3 a.m. spike, nobody awake" failure mode, controlled reset flow (complements the static risk-config-lint, focused on runtime behavior).
 - [ ] **`order-state-machine-audit`** — audit the full order lifecycle state machine: races and missing states across open/partial/cancel/timeout.
-- [ ] **`orderbook-sanity`** — local order-book consistency review: snapshot/increment stitching, sequence gaps, checksum validation, fixed-point price keys, level-deletion logic.
-- [ ] **`risk-config-lint`** — static check of risk config: leverage/position/stop-loss thresholds that are missing, mutually contradictory, or hardcoded to dangerous defaults.
-- [ ] **`data-pipeline-integrity`** — market-data/factor pipeline integrity: gaps, timezone/DST, adjustment conventions, point-in-time persistence.
+- [ ] **`data-recorder-audit`** — market-data recording/replay pipeline review: persistence idempotency, resumable recording, replay-vs-live alignment, point-in-time consistency.
+- [ ] **`exec-quality-audit`** — execution-quality review: slippage/fill-rate attribution, cancel/replace races, TWAP/VWAP child-order logic, divergence between live fills and backtest fill assumptions.
 
 Want a skill we haven't built? Open an issue. The hunter is always looking for the next bit of latency.
 
