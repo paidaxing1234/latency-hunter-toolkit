@@ -1,6 +1,6 @@
 {
   "name": "latency-hunter-toolkit",
-  "description": "Latency Hunter Toolkit — a quant-engineering Claude Code plugin for solo traders. Two skills: backtest-guard (回测照妖镜, backtest pitfall audit) and latency-audit (热路径猎手, C++ low-latency hot-path review). No alpha, no keys — engineering only.",
+  "description": "Latency Hunter Toolkit — a quant-engineering Claude Code plugin for solo traders. Three skills: backtest-guard (回测照妖镜, backtest pitfall audit), latency-audit (热路径猎手, C++ low-latency hot-path review) and connector-forge (连接器锻造, Binance/OKX connector scaffolding). No alpha, no keys — engineering only.",
   "owner": {
     "name": "Latency Hunter (paidaxing)",
     "url": "https://github.com/paidaxing1234"
@@ -8,8 +8,8 @@
   "plugins": [
     {
       "name": "latency-hunter",
-      "description": "Quant engineering skills: backtest-guard + latency-audit. Audit your backtests for look-ahead / overfitting / cost bugs, and your C++ hot path for the lock contention, false sharing, allocations and syscalls that kill tail latency.",
-      "version": "0.1.0",
+      "description": "Quant engineering skills: backtest-guard + latency-audit + connector-forge. Audit your backtests for look-ahead / overfitting / cost bugs, hunt the lock contention and allocations that kill C++ tail latency, and forge production-grade Binance/OKX connectors with reconnect, heartbeat, rate-limit and signing baked in.",
+      "version": "0.2.0",
       "source": "./",
       "author": {
         "name": "Latency Hunter (paidaxing)",

@@ -6,8 +6,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg)](LICENSE)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-d97757.svg)](https://docs.claude.com/en/docs/claude-code)
-[![version](https://img.shields.io/badge/version-0.1.0-3b82f6.svg)](#roadmap)
-[![skills](https://img.shields.io/badge/skills-2-8b5cf6.svg)](#the-two-skills)
+[![version](https://img.shields.io/badge/version-0.2.0-3b82f6.svg)](#roadmap)
+[![skills](https://img.shields.io/badge/skills-3-8b5cf6.svg)](#the-three-skills)
 
 **[中文](README.md) | English**
 
@@ -35,7 +35,7 @@ It never touches your API keys, never predicts returns, never gives you entry/ex
 - Can this fill **actually happen in live trading?** (execution realism / cost)
 - Why is this hot path **slow?** (lock contention / false sharing / cache miss / allocation / syscall)
 
-It currently ships two skills, both governed by the same ironclad rules: **severity-graded, anchored to `file:line`, never speculative.**
+It currently ships three skills: two **review-type** (backtest-guard / latency-audit, governed by the same ironclad rules — **severity-graded, anchored to `file:line`, never speculative**) plus one **generator-type** (connector-forge, which freezes the "connector forging protocol" into a runnable skeleton so your connector never leaks from the foundation up).
 
 ## Install
 
@@ -45,15 +45,16 @@ It currently ships two skills, both governed by the same ironclad rules: **sever
 # 1. Add this repo as a plugin marketplace
 /plugin marketplace add paidaxing1234/latency-hunter-toolkit
 
-# 2. Install the plugin (both skills + both slash commands)
+# 2. Install the plugin (three skills + three slash commands)
 /plugin install latency-hunter
 ```
 
-Once installed, both skills **trigger automatically** when you talk about backtests or hot paths, or you can invoke them explicitly via slash commands:
+Once installed, all three skills **trigger automatically** when you talk about backtests, hot paths, or connectors, or you can invoke them explicitly via slash commands:
 
 ```bash
 /backtest-guard   ./strategy        # audit a backtest/strategy directory
 /latency-audit    ./engine/src      # audit a C++ hot path
+/connector-forge  ./my-bot          # generate/repair an exchange connector skeleton
 ```
 
 ### Option B — manual copy into your skills directory (fallback)
@@ -64,15 +65,16 @@ If you'd rather skip the marketplace and just grab the skills themselves:
 # Clone the repo
 git clone https://github.com/paidaxing1234/latency-hunter-toolkit.git
 
-# Copy both skills into your user-level skills directory
+# Copy all three skills into your user-level skills directory
 mkdir -p ~/.claude/skills
-cp -r latency-hunter-toolkit/skills/backtest-guard ~/.claude/skills/
-cp -r latency-hunter-toolkit/skills/latency-audit  ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/backtest-guard  ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/latency-audit   ~/.claude/skills/
+cp -r latency-hunter-toolkit/skills/connector-forge ~/.claude/skills/
 ```
 
-Restart Claude Code, then just say "check this backtest for look-ahead bias" or "why is this hot path slow" to trigger them.
+Restart Claude Code, then just say "check this backtest for look-ahead bias", "why is this hot path slow", or "generate a Binance connector / my WS keeps dropping, add reconnect" to trigger them.
 
-## The two skills
+## The three skills
 
 ### 1. `backtest-guard` — the backtest lie detector
 
@@ -176,6 +178,46 @@ Verdict: "The mean looks pretty; p99.9 is paying off this lock and
 
 > The report recommends verifying with `perf` / `clang-tidy` and **only points a direction — it never promises a microsecond figure.** Whether it's truly a hot path, and how much faster your fix actually is, is whatever your own machine measures.
 
+### 3. `connector-forge` — the connector forge
+
+> Freezes "how to forge a connector that doesn't leak, from the foundation up" into an executable protocol, and one-shot generates a runnable Binance / OKX market-data + trading connector skeleton (or audits an existing connector for reliability gaps).
+
+**What it is** — the first two skills are **review-type** (they nitpick); this one is a **generator-type scaffold.** A connector is the **foundation** of a quant system: it doesn't make money directly, but **one leak and the whole thing collapses** — 90% of "live doesn't match the backtest", "mysterious disconnects", and "occasional order failures" originate in this layer, and they're all **silent failures** (the connection looks healthy while the data has long been dead or wrong). This skill freezes one ironclad rule: **declare it dead and rebuild explicitly, never run sick.**
+
+What it generates / repairs is engineering, not alpha:
+
+| Dimension | What it forges |
+|-----------|----------------|
+| ① Won't connect / keeps dropping | exponential backoff + full jitter reconnect, heartbeat **watchdog** (monotonic-clock death detection, defeats TCP half-open "zombie" connections), early reconnect before Binance's 24h forced close, OKX `'ping'/'pong'` application-layer heartbeat |
+| ② Data doesn't match | re-subscribe the **whole "expected subscription set" and verify acks** after reconnect, **per-message continuity check** on sequenced increments, gap → discard → re-pull snapshot and replay, local order book `qty==0` deletes a level + checksum backstop |
+| ③ Signature / clock errors | Binance HMAC-SHA256 (query+body) / OKX prehash→Base64 + passphrase, timestamps based on **calibrated exchange time** (defeats -1021 / 50102), `listenKey` renewal every 30 min / OKX `login` renewal |
+| ④ Rate limit / idempotency / security | a token bucket priced by **weight, not request count**, capped at 80% of the limit, per-order `clientOrderId` idempotency + "verify-then-resend" on timeout, keys injected **only from env** + fail-fast + log masking (never hardcoded) |
+
+**How it triggers**
+
+- Automatically: say "generate / write me a Binance/OKX connector", "scaffold a market-data subscription", "my WS keeps dropping, add reconnect", or report a fault: "signature error -1022/50113", "timestamp error -1021/50102", "listenKey expired, not receiving fills", "no data after reconnect", "local order book doesn't match the exchange".
+- Trigger words: connector, connector-forge, exchange connector, market data feed, websocket reconnect, heartbeat, listenKey, ws login, orderbook snapshot, sequence gap, rate limit token bucket, clock drift.
+- Explicit: `/connector-forge ./my-bot`
+
+**Generated connector skeleton (directory layout)**
+
+```
+exchange_connector/
+├── config.py            # ENV enum, endpoint map (testnet/live), token-bucket quotas (marked TODO: defer to exchangeInfo)
+├── credentials.py       # read key/secret/passphrase from os.environ, fail-fast, mask() for logs
+├── clock.py             # server-time sync, offset maintenance, drift alerts
+├── ratelimit.py         # async token bucket priced by weight
+├── ws_market.py         # market WS: combined-stream subscribe + expected set + ping-pong watchdog + backoff reconnect + re-subscribe
+├── orderbook.py         # snapshot+increment stitching, sequence-gap detection, qty==0 deletes, checksum
+├── ws_user.py           # user data stream: listenKey renewal / OKX login + REST reconciliation after disconnect
+├── rest_client.py       # signing, order placement (clientOrderId idempotency), 5xx verification, error-class mapping table
+├── reconnect.py         # exponential backoff + full jitter, heartbeat watchdog (monotonic)
+├── shutdown.py          # graceful shutdown on SIGTERM/SIGINT
+└── README.md            # which env vars to run, testnet→live switch steps, TODO checklist
+```
+
+> Delivered with a checkbox-by-checkbox **connector self-check checklist** (implemented / TODO / N/A) so you or code-reviewer can see at a glance where the foundation still leaks. Key security is top priority: **never hardcoded** — only env-injection points + fail-fast; the skeleton **defaults to testnet**, and switching to live requires explicit confirmation. The **full templates** for both exchanges — endpoint routing, signing, rate limits, renewal — are in **`skills/connector-forge/references/connector-blueprint.md`**.
+
 ## Directory structure
 
 ```
@@ -185,15 +227,20 @@ latency-hunter-toolkit/
 │   └── marketplace.json      # marketplace manifest (for /plugin marketplace add)
 ├── commands/
 │   ├── backtest-guard.md     # /backtest-guard slash command
-│   └── latency-audit.md      # /latency-audit slash command
+│   ├── latency-audit.md      # /latency-audit slash command
+│   └── connector-forge.md    # /connector-forge slash command
 ├── skills/
 │   ├── backtest-guard/
 │   │   ├── SKILL.md                          # protocol + 4 pitfall families + report template
 │   │   └── references/
 │   │       └── backtest-pitfalls.md          # 48-pitfall encyclopedia (why → smell → detect → fix)
-│   └── latency-audit/
-│       ├── SKILL.md                          # protocol + 3 families + report template
-│       └── references/                       # hot-path pitfall references
+│   ├── latency-audit/
+│   │   ├── SKILL.md                          # protocol + 3 families + report template
+│   │   └── references/                       # hot-path pitfall references
+│   └── connector-forge/
+│       ├── SKILL.md                          # connector forge: 6-step protocol + 2-exchange cheat sheet + reliability checklist
+│       └── references/
+│           └── connector-blueprint.md        # full Binance/OKX connector templates (endpoints/signing/rate limits/renewal)
 ├── LICENSE                   # MIT
 ├── README.md                 # 中文 (default)
 └── README.en.md              # English (this file)
@@ -201,11 +248,13 @@ latency-hunter-toolkit/
 
 ## Roadmap
 
-`v0.1.0` is the foundation: two engineering-review skills. From here it grows along the "full-stack engineering review for the solo quant" line — **still no alpha, no keys, no models**:
+`v0.2.0` packs another layer onto the foundation: two **review-type** skills (backtest-guard / latency-audit) plus one **generator-type** skill (connector-forge). From here it grows along the "full-stack engineering review for the solo quant" line — **still no alpha, no keys, no models**:
 
-- [ ] **`exchange-connector-forge`** — audit/scaffold exchange connectors: WebSocket reconnect & heartbeat, rate-limit & weight handling, order-state-machine consistency, `recvWindow`/clock sync, disconnect replay & idempotency.
+- [x] **`connector-forge`** — ✅ shipped (v0.2.0): one-shot generate/repair a production-grade Binance·OKX market-data + trading connector skeleton — WebSocket reconnect & heartbeat, rate-limit token bucket, signing & clock sync, listenKey/login renewal, re-subscribe, sequence-gap re-snapshot, keys via env; also audits existing connectors for reliability gaps.
 - [ ] **`risk-killswitch-guard`** — audit live risk/circuit-breaker logic: position caps, max-drawdown breakers, per-trade/per-day loss thresholds, kill-switch reachability.
 - [ ] **`order-state-machine-audit`** — audit the full order lifecycle state machine: races and missing states across open/partial/cancel/timeout.
+- [ ] **`orderbook-sanity`** — local order-book consistency review: snapshot/increment stitching, sequence gaps, checksum validation, fixed-point price keys, level-deletion logic.
+- [ ] **`risk-config-lint`** — static check of risk config: leverage/position/stop-loss thresholds that are missing, mutually contradictory, or hardcoded to dangerous defaults.
 - [ ] **`data-pipeline-integrity`** — market-data/factor pipeline integrity: gaps, timezone/DST, adjustment conventions, point-in-time persistence.
 
 Want a skill we haven't built? Open an issue. The hunter is always looking for the next bit of latency.

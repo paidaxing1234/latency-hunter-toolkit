@@ -1,7 +1,7 @@
 {
   "name": "latency-hunter",
-  "version": "0.1.0",
-  "description": "Latency Hunter Toolkit — quant-engineering skills for Claude Code. backtest-guard audits backtests for look-ahead bias / overfitting / unrealistic execution costs; latency-audit reviews C++ low-latency trading hot paths for lock contention, false sharing, cache misses, heap allocation, syscalls and copies. No alpha, no keys, no models — engineering review only.",
+  "version": "0.2.0",
+  "description": "Latency Hunter Toolkit — quant-engineering skills for Claude Code. backtest-guard audits backtests for look-ahead bias / overfitting / unrealistic execution costs; latency-audit reviews C++ low-latency trading hot paths for lock contention, false sharing, cache misses, heap allocation, syscalls and copies; connector-forge generates production-grade Binance/OKX market-data & trading connectors (reconnect, heartbeat, rate-limit, signing, time-sync). No alpha, no keys, no models — engineering only.",
   "author": {
     "name": "Latency Hunter (paidaxing)",
     "url": "https://github.com/paidaxing1234"
@@ -22,11 +22,13 @@
     "hotpath",
     "performance",
     "lock-free",
+    "exchange-connector",
+    "websocket",
+    "binance",
+    "okx",
     "claude-code",
     "skill",
     "plugin",
-    "binance",
-    "okx",
     "risk-management"
   ]
 }
