@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Latency Hunter Toolkit — Quant Engineering Audit Plugin for Claude Code</title>
+<meta name="description" content="Latency Hunter Toolkit is a free Claude Code plugin for quant engineering: backtest audit (look-ahead bias, overfitting), C++ low-latency hot-path review, exchange connector forging, orderbook sanity checks, and risk-config linting for Binance, OKX and other crypto venues." />
+<meta name="keywords" content="Claude Code plugin, quant, backtest audit, look-ahead bias, overfitting, C++ low-latency, hot path, exchange connector, orderbook, risk config, Binance, OKX" />
+<meta name="author" content="paidaxing1234" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<link rel="canonical" href="https://paidaxing1234.github.io/latency-hunter-toolkit/" />
+
+<!-- Open Graph -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Latency Hunter Toolkit" />
+<meta property="og:title" content="Latency Hunter Toolkit — Quant Engineering Audit Plugin for Claude Code" />
+<meta property="og:description" content="Free Claude Code plugin with 5 skills: backtest audit, C++ low-latency hot-path review, connector forging, orderbook sanity, and risk-config linting. For quant developers on Binance, OKX and beyond." />
+<meta property="og:url" content="https://paidaxing1234.github.io/latency-hunter-toolkit/" />
+<meta property="og:image" content="https://opengraph.githubassets.com/1/paidaxing1234/latency-hunter-toolkit" />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Latency Hunter Toolkit — Quant Engineering Audit Plugin for Claude Code" />
+<meta name="twitter:description" content="Free Claude Code plugin with 5 quant-engineering skills: backtest audit, C++ low-latency hot-path review, connector forging, orderbook sanity, risk-config linting." />
+<meta name="twitter:image" content="https://opengraph.githubassets.com/1/paidaxing1234/latency-hunter-toolkit" />
+
+<!-- JSON-LD: SoftwareApplication -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Latency Hunter Toolkit",
+  "description": "A free Claude Code plugin for quant engineering review. It bundles five skills: backtest-guard (backtest audit for look-ahead bias and overfitting), latency-audit (C++ low-latency hot-path review), connector-forge (exchange connector scaffolding for Binance and OKX), orderbook-sanity (market-data and local orderbook validation), and risk-config-lint (risk configuration checks).",
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "Claude Code Plugin",
+  "operatingSystem": "Cross-platform (Claude Code CLI on macOS, Linux, Windows)",
+  "softwareVersion": "1.0",
+  "url": "https://paidaxing1234.github.io/latency-hunter-toolkit/",
+  "downloadUrl": "https://github.com/paidaxing1234/latency-hunter-toolkit",
+  "softwareHelp": "https://github.com/paidaxing1234/latency-hunter-toolkit#readme",
+  "license": "https://github.com/paidaxing1234/latency-hunter-toolkit/blob/main/LICENSE",
+  "keywords": "Claude Code plugin, quant, backtest audit, look-ahead bias, overfitting, C++ low-latency, exchange connector, orderbook, risk config, Binance, OKX",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "paidaxing1234",
+    "url": "https://github.com/paidaxing1234"
+  },
+  "isAccessibleForFree": true
+}
+</script>
+
+<!-- JSON-LD: FAQPage (GEO) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is Latency Hunter Toolkit?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Latency Hunter Toolkit is a free Claude Code plugin that audits and scaffolds quant trading engineering. It packages five skills covering backtest credibility, C++ low-latency hot-path review, exchange connector reliability, orderbook data sanity, and risk-config checks for venues such as Binance and OKX."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I install Latency Hunter Toolkit in Claude Code?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Inside Claude Code, run: /plugin marketplace add paidaxing1234/latency-hunter-toolkit . This registers the marketplace; you can then install the toolkit and its five skills become available."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which skills are included?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Five skills: backtest-guard (backtest audit for look-ahead bias and overfitting), latency-audit (C++ low-latency hot-path review), connector-forge (exchange connector scaffolding with auto-reconnect, heartbeat and rate limiting), orderbook-sanity (local orderbook and market-data validation), and risk-config-lint (risk configuration linting)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it find alpha, predict returns, or need my API keys?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Latency Hunter Toolkit is an engineering-review tool only. It does not generate trading signals or alpha, does not predict or promise returns, and never reads or stores API keys or secrets. Connector scaffolds inject credentials from environment variables and never hardcode them."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which exchanges and languages does it support?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The connector and orderbook skills target crypto venues such as Binance and OKX over WebSocket and REST. Backtest and risk audits are language-agnostic with a focus on Python, while the latency-audit skill targets C++ low-latency trading code."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is Latency Hunter Toolkit free and open source?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. It is free to use and the source lives in the public GitHub repository paidaxing1234/latency-hunter-toolkit, where you can read every skill prompt before running it."
+      }
+    }
+  ]
+}
+</script>
+
+<style>
+  :root {
+    --bg: #0b0f17;
+    --bg-elev: #121826;
+    --bg-card: #161d2b;
+    --border: #232c3d;
+    --text: #e6ecf5;
+    --text-dim: #9aa7bd;
+    --accent: #4ea1ff;
+    --accent-soft: rgba(78, 161, 255, 0.12);
+    --green: #3ddc97;
+    --amber: #f2b84b;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-elev), var(--bg));
+    padding: 64px 0 52px;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    margin-bottom: 20px;
+  }
+  h1 {
+    font-size: clamp(1.9rem, 1.2rem + 3vw, 3rem);
+    line-height: 1.12;
+    margin: 0 0 16px;
+    letter-spacing: -0.02em;
+  }
+  .lede {
+    font-size: clamp(1.05rem, 1rem + 0.4vw, 1.25rem);
+    color: var(--text-dim);
+    max-width: 60ch;
+    margin: 0 0 28px;
+  }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn {
+    display: inline-block;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn-primary { background: var(--accent); color: #06101f; border-color: var(--accent); }
+  .btn-primary:hover { background: #6db4ff; }
+  .btn-ghost { background: transparent; color: var(--text); }
+  .btn-ghost:hover { border-color: var(--accent); }
+
+  section { padding: 52px 0; border-bottom: 1px solid var(--border); }
+  h2 {
+    font-size: clamp(1.35rem, 1.1rem + 1vw, 1.7rem);
+    letter-spacing: -0.01em;
+    margin: 0 0 8px;
+  }
+  .section-sub { color: var(--text-dim); margin: 0 0 28px; max-width: 62ch; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .card .tag {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .card p { margin: 0; color: var(--text-dim); font-size: 0.93rem; }
+
+  pre.install {
+    background: #060a12;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    color: var(--green);
+    margin: 0 0 12px;
+  }
+  pre.install .prompt { color: var(--text-dim); }
+  .install-note { color: var(--text-dim); font-size: 0.9rem; margin: 0; }
+
+  ol.loop { counter-reset: step; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  ol.loop li {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px 14px 20px;
+    counter-increment: step;
+    position: relative;
+  }
+  ol.loop li strong { color: var(--text); }
+  ol.loop li span { color: var(--text-dim); }
+  ol.loop li.forge { border-left-color: var(--green); }
+
+  .honest { background: var(--bg-elev); }
+  .honest ul { margin: 0; padding-left: 20px; }
+  .honest li { color: var(--text-dim); margin-bottom: 8px; }
+  .honest li strong { color: var(--text); }
+
+  .related a { display: inline-block; margin-right: 8px; }
+  dl.faq dt { font-weight: 600; margin-top: 18px; }
+  dl.faq dd { margin: 6px 0 0; color: var(--text-dim); }
+
+  footer {
+    padding: 36px 0 60px;
+    color: var(--text-dim);
+    font-size: 0.88rem;
+  }
+  footer a { color: var(--text-dim); text-decoration: underline; }
+  footer a:hover { color: var(--text); }
+
+  @media (max-width: 560px) {
+    header { padding: 44px 0 36px; }
+    section { padding: 40px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <span class="eyebrow">Claude Code Plugin · Free</span>
+    <h1>Latency Hunter Toolkit</h1>
+    <p class="lede">
+      A quant-engineering review plugin for Claude Code. Five skills that audit your
+      backtests for look-ahead bias and overfitting, hunt C++ low-latency hot paths,
+      forge reliable exchange connectors, sanity-check orderbook data, and lint your
+      risk config — for Binance, OKX and beyond.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/paidaxing1234/latency-hunter-toolkit">View on GitHub</a>
+      <a class="btn btn-ghost" href="#install">Install command</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="what">
+    <div class="wrap">
+      <h2>What it is</h2>
+      <p class="section-sub">
+        Latency Hunter Toolkit is an engineering microscope for quant trading code.
+        You hand it a backtest, a hot path, a connector, market data, or a risk config,
+        and it returns a severity-ranked report of the traps that make backtests look
+        rich and live trading lose money. It does not give you alpha — it makes sure the
+        alpha you think you have isn't a bug.
+      </p>
+    </div>
+  </section>
+
+  <section id="skills">
+    <div class="wrap">
+      <h2>Five skills</h2>
+      <p class="section-sub">Each skill encodes a hardened review or scaffolding protocol so you don't re-learn the same trap twice.</p>
+      <div class="grid">
+        <article class="card">
+          <span class="tag">backtest-guard</span>
+          <h3>Backtest 照妖镜</h3>
+          <p>Catches look-ahead bias, data leakage, overfitting and bogus return accounting that make backtests lie.</p>
+        </article>
+        <article class="card">
+          <span class="tag">latency-audit</span>
+          <h3>热路径猎手</h3>
+          <p>Hunts allocations, locks, syscalls and copies on the C++ low-latency hot path of your trading engine.</p>
+        </article>
+        <article class="card">
+          <span class="tag">connector-forge</span>
+          <h3>连接器锻造</h3>
+          <p>Generates and audits exchange connectors with auto-reconnect, heartbeat watchdog, rate limiting and env-only keys.</p>
+        </article>
+        <article class="card">
+          <span class="tag">orderbook-sanity</span>
+          <h3>数据照妖镜</h3>
+          <p>Validates local orderbook construction, sequence gaps, snapshot resync and market-data integrity.</p>
+        </article>
+        <article class="card">
+          <span class="tag">risk-config-lint</span>
+          <h3>风控体检</h3>
+          <p>Lints risk configuration for missing limits, unsafe defaults and gaps that let a bad config blow up an account.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>One-line install</h2>
+      <p class="section-sub">Run this inside Claude Code to register the marketplace, then install the toolkit.</p>
+      <pre class="install"><span class="prompt">&gt; </span>/plugin marketplace add paidaxing1234/latency-hunter-toolkit</pre>
+      <p class="install-note">All five skills become available immediately. Every skill prompt is plain text in the repo — read it before you run it.</p>
+    </div>
+  </section>
+
+  <section id="loop">
+    <div class="wrap">
+      <h2>The "four audits, one forge" loop</h2>
+      <p class="section-sub">A closed loop from idea to live: four review gates plus one generator, so each layer is hardened before the next.</p>
+      <ol class="loop">
+        <li><strong>1 · Backtest audit</strong> <span>— prove the edge is real, not a look-ahead artifact (backtest-guard).</span></li>
+        <li><strong>2 · Latency audit</strong> <span>— make sure the C++ hot path is fast enough to capture that edge (latency-audit).</span></li>
+        <li><strong>3 · Orderbook audit</strong> <span>— confirm the market data feeding both is clean and gap-free (orderbook-sanity).</span></li>
+        <li><strong>4 · Risk audit</strong> <span>— verify the risk config can survive a bad day (risk-config-lint).</span></li>
+        <li class="forge"><strong>5 · Connector forge</strong> <span>— scaffold the reliable exchange plumbing that ties it all together (connector-forge).</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="honest" class="honest">
+    <div class="wrap">
+      <h2>Honest disclaimer</h2>
+      <ul>
+        <li><strong>No alpha.</strong> This toolkit reviews engineering. It does not generate trading signals, strategies, or alpha.</li>
+        <li><strong>No keys.</strong> It never reads, stores, or transmits API keys or secrets. Connector scaffolds inject credentials from environment variables and never hardcode them.</li>
+        <li><strong>No promises.</strong> Nothing here predicts or guarantees returns. It catches bugs that cost money; it does not make money. Trading carries real risk of loss — you own every decision.</li>
+        <li><strong>Not advice.</strong> This is developer tooling, not financial, investment, or trading advice.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="related">
+    <div class="wrap">
+      <h2>Related projects by the same author</h2>
+      <p class="section-sub related">
+        <a href="https://github.com/paidaxing1234/crypto-trading-framework">crypto-trading-framework</a> — a low-latency C++ live-trading framework ·
+        <a href="https://github.com/paidaxing1234/quant-backtest-guard">quant-backtest-guard</a> ·
+        <a href="https://github.com/paidaxing1234/patrick-skill">patrick-skill</a>
+      </p>
+    </div>
+  </section>
+
+  <section id="faq">
+    <div class="wrap">
+      <h2>FAQ</h2>
+      <dl class="faq">
+        <dt>What is Latency Hunter Toolkit?</dt>
+        <dd>A free Claude Code plugin that audits and scaffolds quant trading engineering across five skills: backtest credibility, C++ low-latency hot paths, exchange connector reliability, orderbook data sanity, and risk config — for venues such as Binance and OKX.</dd>
+
+        <dt>How do I install it in Claude Code?</dt>
+        <dd>Inside Claude Code, run <code>/plugin marketplace add paidaxing1234/latency-hunter-toolkit</code>, then install the toolkit. The five skills become available right away.</dd>
+
+        <dt>Does it find alpha, predict returns, or need my API keys?</dt>
+        <dd>No. It is an engineering-review tool only. It generates no signals or alpha, predicts no returns, and never reads or stores API keys — connector scaffolds inject credentials from environment variables.</dd>
+
+        <dt>Which exchanges and languages does it cover?</dt>
+        <dd>The connector and orderbook skills target crypto venues such as Binance and OKX over WebSocket/REST. Backtest and risk audits are language-agnostic with a Python focus; latency-audit targets C++ low-latency code.</dd>
+
+        <dt>Is it free and open source?</dt>
+        <dd>Yes — free to use, with all source in the public GitHub repository so you can read every skill prompt before running it.</dd>
+      </dl>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    Latency Hunter Toolkit · MIT-licensed developer tooling ·
+    <a href="https://github.com/paidaxing1234/latency-hunter-toolkit">github.com/paidaxing1234/latency-hunter-toolkit</a><br />
+    Engineering review only. No alpha, no keys, no return promises. Trading involves risk of loss.
+  </div>
+</footer>
+
+</body>
+</html>

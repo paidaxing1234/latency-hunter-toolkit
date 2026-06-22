@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use Latency Hunter Toolkit, please cite it as below."
+title: "Latency Hunter Toolkit"
+abstract: >-
+  Quant-engineering skills for Claude Code — a plugin bundling five skills:
+  backtest-guard (backtest pitfall audit), latency-audit (C++ low-latency
+  hot-path review), connector-forge (Binance/OKX connector scaffolding),
+  orderbook-sanity (market-data quality audit) and risk-config-lint
+  (risk-management config audit). No alpha, no keys, no models — engineering only.
+type: software
+authors:
+  - alias: paidaxing
+    name: "paidaxing (Latency Hunter)"
+repository-code: "https://github.com/paidaxing1234/latency-hunter-toolkit"
+url: "https://github.com/paidaxing1234/latency-hunter-toolkit"
+license: MIT
+version: "0.3.0"
+keywords:
+  - claude-code
+  - claude-code-plugin
+  - quantitative-trading
+  - backtesting
+  - low-latency
+  - cpp
+  - risk-management
+  - market-data
+  - binance
+  - okx
